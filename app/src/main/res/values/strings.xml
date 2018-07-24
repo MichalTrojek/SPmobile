@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">SkladovyPomocnik</string>
+    <string name="inputHint">Vlož Ean</string>
+    <string name="editAmountHint">Vlož Nové Množství</string>
+    <string name="cancelButton">Zpět</string>
+    <string name="editButton">Editovat</string>
+    <string name="deleteButton">Vymazat</string>
+    <string name="exportButton">Exportovat</string>
+    <string name="settingsButton">Nastavení</string>
+    <string name="deleteAllButton">Smazat Vše</string>
+    <string name="editIpAddressButton">Změnit IP Adresu</string>
+    <string name="inputIpAddressHint">Vlož IP Adresu</string>
+
+</resources>
