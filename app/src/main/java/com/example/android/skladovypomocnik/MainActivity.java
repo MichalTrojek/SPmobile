@@ -117,6 +117,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         view.findViewById(R.id.deleteButton).setOnClickListener(MainActivity.this);
         view.findViewById(R.id.cancelButton).setOnClickListener(MainActivity.this);
         view.findViewById(R.id.editButton).setOnClickListener(MainActivity.this);
+        view.findViewById(R.id.addButton).setOnClickListener(MainActivity.this);
         amountInput = (EditText) view.findViewById(R.id.amountInput);
         deleteDialog = new AlertDialog.Builder(this).setView(view).create();
     }
@@ -126,6 +127,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         View view = getLayoutInflater().inflate(R.layout.edit_ip_dialog, null);
         view.findViewById(R.id.editIpButton).setOnClickListener(MainActivity.this);
         view.findViewById(R.id.backButton).setOnClickListener(MainActivity.this);
+
         inputIpAddress = (EditText) view.findViewById(R.id.editIpText);
         ipAddressTextView = (TextView) view.findViewById(R.id.ipAddressTextView);
         ipAddressTextView.setText("IP Adresa : " + settings.getIp());
@@ -250,8 +252,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.networkSettingsButton:
                 handleNetworkSettingsButton();
                 break;
+            case R.id.addButton:
+                handleAddButton();
+                break;
             default:
                 break;
+        }
+    }
+
+    private void handleAddButton() {
+        if (!amountInput.getText().toString().isEmpty()) {
+            addAmount();
+        }
+        deleteDialog.dismiss();
+    }
+
+    private void addAmount() {
+        BigInteger amount = new BigInteger(amountInput.getText().toString());
+        if (amount.intValue() > 100000 || amount.intValue() < 0) {
+            Toast.makeText(this, "Příliš velké nebo malé číslo", Toast.LENGTH_SHORT).show();
+        } else {
+            amountInput.setText("");
+            String ean = articles.get(selectedIndex).getEan();
+            int newAmount = articles.get(selectedIndex).getAmount() + amount.intValue();
+            articles.set(selectedIndex, new Article(ean, newAmount));
+            adapter.notifyDataSetChanged();
         }
     }
 

@@ -1,14 +1,16 @@
 <resources>
     <string name="app_name">SkladovyPomocnik</string>
     <string name="inputHint">Vlož Ean</string>
-    <string name="editAmountHint">Vlož Nové Množství</string>
+    <string name="editAmountHint">Vlož Množství</string>
     <string name="cancelButton">Zpět</string>
-    <string name="editButton">Editovat</string>
-    <string name="deleteButton">Vymazat</string>
+    <string name="editButton">Změnit</string>
+    <string name="deleteButton">Smazat</string>
     <string name="exportButton">Exportovat</string>
     <string name="settingsButton">Nastavení</string>
     <string name="deleteAllButton">Smazat Vše</string>
     <string name="editIpAddressButton">Změnit IP Adresu</string>
     <string name="inputIpAddressHint">Vlož IP Adresu</string>
-
+    <string name="infoLabel">(c) 2018, Michal Trojek</string>
+    <string name="versionNumber">Verze 1</string>
+    <string name="addAmountButton">Přidat</string>
 </resources>

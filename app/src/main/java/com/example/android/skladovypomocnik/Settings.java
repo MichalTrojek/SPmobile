@@ -24,13 +24,13 @@ public class Settings {
     }
 
 
-    public void setArticles(String articles){
+    public void setArticles(String articles) {
         editor = prefs.edit();
-        editor.putString("articles",articles);
+        editor.putString("articles", articles);
         editor.apply();
     }
 
-    public String getArticles(){
+    public String getArticles() {
         return prefs.getString("articles", "");
     }
 
