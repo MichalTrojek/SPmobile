@@ -13,4 +13,7 @@
     <string name="infoLabel">(c) 2018, Michal Trojek</string>
     <string name="versionNumber">Verze 1</string>
     <string name="addAmountButton">Přidat</string>
+    <string name="totalAmountTextView">Celkové množství: 0</string>
+    <string name="totalEanAmountTextView">Počet titulů: 0</string>
+    <string name='currentAmount'>Současný počet: 0</string>
 </resources>

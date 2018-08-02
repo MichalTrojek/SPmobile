@@ -1,11 +1,13 @@
 package com.example.android.skladovypomocnik;
 
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ListView;
@@ -30,6 +32,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private EditText inputIpAddress;
     private EditText amountInput;
     private TextView ipAddressTextView;
+    private TextView amountTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +78,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             articles.addAll(convertDataToArrayList(settings.getArticles()));
             adapter.notifyDataSetChanged();
         }
+        refreshAmountTextView();
     }
 
     @Override
@@ -83,7 +87,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onSaveInstanceState(outState);
     }
 
-
+    // it takes list of Articles and changes them into String. ean and amount are divided by . and each object by ;     ean.amount;ean.amount;ean.amount; etc
     private String convertArrayListToString() {
         StringBuffer sb = new StringBuffer();
         for (Article a : articles) {
@@ -101,6 +105,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         adapter.notifyDataSetChanged();
     }
 
+    // takes a string a changes it to arrayList.  The format of string goes like this  ean.amount;ean.amount;ean.amount; etc 
     public ArrayList<Article> convertDataToArrayList(String data) {
         String[] splittedData = data.split(";");
         ArrayList<Article> articles = new ArrayList<>();
@@ -111,18 +116,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return articles;
     }
 
-
+    // This creates a dialog window  that shows up after clicking on item in listView
     private void createListItemAlertDialog() {
         View view = getLayoutInflater().inflate(R.layout.edit_listview_dialog, null);
         view.findViewById(R.id.deleteButton).setOnClickListener(MainActivity.this);
         view.findViewById(R.id.cancelButton).setOnClickListener(MainActivity.this);
         view.findViewById(R.id.editButton).setOnClickListener(MainActivity.this);
         view.findViewById(R.id.addButton).setOnClickListener(MainActivity.this);
+        amountTextView = (TextView) view.findViewById(R.id.currentAmountTextView);
         amountInput = (EditText) view.findViewById(R.id.amountInput);
         deleteDialog = new AlertDialog.Builder(this).setView(view).create();
     }
 
-
+    // This creates a dialog window that shows up after pressing network settings button
     private void createIpAddressAlertDialog() {
         View view = getLayoutInflater().inflate(R.layout.edit_ip_dialog, null);
         view.findViewById(R.id.editIpButton).setOnClickListener(MainActivity.this);
@@ -140,7 +146,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         this.findViewById(R.id.networkSettingsButton).setOnClickListener(this);
     }
 
-
+    // when enter key is pressed, value in inputEanTextview is added to listView and amount info is refreshed
     private void setInputListener() {
         inputEanText.setOnKeyListener(new View.OnKeyListener() {
             @Override
@@ -153,6 +159,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private boolean handleEnterKey(int keyCode, KeyEvent keyevent) {
         if ((keyevent.getAction() == KeyEvent.ACTION_DOWN) && (keyCode == KeyEvent.KEYCODE_ENTER)) {
             addEan();
+            refreshAmountTextView();
             return true;
         }
         return false;
@@ -210,7 +217,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    private void refreshAmountTextView() {
+        TextView totalAmountTextView = (TextView) findViewById(R.id.totalAmountTextView);
+        TextView totalEanAmountTextView = (TextView) findViewById(R.id.totalEanAmountTextView);
+        totalAmountTextView.setText("Celkové množství:  " + calculateAmount());
+        totalEanAmountTextView.setText("Počet titulů: " + articles.size());
+    }
 
+    private int calculateAmount() {
+        int amount = 0;
+        for (Article a : articles) {
+            amount += a.getAmount();
+        }
+        return amount;
+    }
+
+    // It shows dialog window whe item from listView is selected
     private void setSelectedItemListener() {
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -222,6 +244,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void handleItemSelected(int position) {
         selectedIndex = position;
+        amountTextView.setText("Současný počet: " + articles.get(selectedIndex).getAmount());
         deleteDialog.show();
     }
 
@@ -233,9 +256,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.editButton:
                 handleEditAmountButton();
+                refreshAmountTextView();
                 break;
             case R.id.deleteButton:
                 handleDeleteItemButton();
+                refreshAmountTextView();
                 break;
             case R.id.editIpButton:
                 handleEditIpButton();
@@ -254,13 +279,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.addButton:
                 handleAddButton();
+                refreshAmountTextView();
                 break;
             default:
                 break;
         }
+
     }
 
     private void handleAddButton() {
+        hideKeyboard(amountInput);
         if (!amountInput.getText().toString().isEmpty()) {
             addAmount();
         }
@@ -281,10 +309,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void handleCancelButton() {
+        hideKeyboard(amountInput);
         deleteDialog.dismiss();
     }
 
     private void handleEditAmountButton() {
+        hideKeyboard(amountInput);
         if (!amountInput.getText().toString().isEmpty()) {
             changeAmount();
         }
@@ -296,21 +326,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (amount.intValue() > 100000 || amount.intValue() < 0) {
             Toast.makeText(this, "Příliš velké nebo malé číslo", Toast.LENGTH_SHORT).show();
         } else {
-            amountInput.setText("");
-            String ean = articles.get(selectedIndex).getEan();
-            articles.set(selectedIndex, new Article(ean, amount.intValue()));
-            adapter.notifyDataSetChanged();
+            makeChangeAndNotifyAdapter(amount);
         }
+    }
+
+    private void makeChangeAndNotifyAdapter(BigInteger amount) {
+        amountInput.setText("");
+        String ean = articles.get(selectedIndex).getEan();
+        articles.set(selectedIndex, new Article(ean, amount.intValue()));
+        adapter.notifyDataSetChanged();
     }
 
 
     private void handleDeleteItemButton() {
+        hideKeyboard(amountInput);
         articles.remove((articles.get(selectedIndex)));
         adapter.notifyDataSetChanged();
         deleteDialog.dismiss();
     }
 
     private void handleEditIpButton() {
+        hideKeyboard(inputIpAddress);
         String ip = inputIpAddress.getText().toString().replace(" ", "");
         if (ip.length() != 0) {
             setNewIpAddress(ip);
@@ -318,6 +354,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Toast.makeText(this, "Vlož IP Adresu", Toast.LENGTH_SHORT).show();
         }
     }
+
+    private void hideKeyboard(EditText editText) {
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(editText.getWindowToken(), 0);
+    }
+
 
     private void setNewIpAddress(String ip) {
         settings.setIP(ip);
@@ -328,14 +370,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     private void handleBackButton() {
+        hideKeyboard(inputIpAddress);
         ipDialog.dismiss();
     }
 
 
     private void handleExportButton() {
+        hideKeyboard(inputEanText);
         String data = convertArrayListToString();
         if (data.length() == 0) {
             Toast.makeText(this, "Není vložený žádný ean", Toast.LENGTH_SHORT).show();
+        } else if (settings.getIp().length() == 0) {
+            Toast.makeText(this, "Není vložená IP adresa", Toast.LENGTH_SHORT).show();
         } else {
             sendData(data);
         }
@@ -343,13 +389,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     private void sendData(String data) {
-        Sender sender = new Sender(settings.getIp());
+        Client sender = new Client(settings.getIp());
         sender.execute(data.toString());
         Toast.makeText(this, "Data byla vyexportována", Toast.LENGTH_SHORT).show();
     }
 
 
     private void handleDeleteAllItemsButton() {
+        hideKeyboard(inputEanText);
         if (articles.isEmpty()) {
             Toast.makeText(this, "List je prázdný", Toast.LENGTH_SHORT).show();
         } else {
@@ -367,12 +414,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }).setPositiveButton("Ano", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                articles.clear();
-                adapter.notifyDataSetChanged();
+                deleteAll();
             }
         }).create();
         builder.show();
 
+    }
+
+    private void deleteAll() {
+        articles.clear();
+        adapter.notifyDataSetChanged();
+        refreshAmountTextView();
     }
 
     private void handleNetworkSettingsButton() {
