@@ -14,6 +14,10 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
+import com.google.android.gms.ads.MobileAds;
+
 import java.math.BigInteger;
 import java.util.ArrayList;
 
@@ -22,7 +26,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final String TAG = MainActivity.class.getName();
     private ListView list;
     private ArrayList<Article> articles;
-    private ArticleListAdapter adapter;
+    private ArticleListAdapter listViewAdapter;
     private boolean containsEan = false;
     private AlertDialog deleteDialog;
     private AlertDialog ipDialog;
@@ -30,7 +34,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Settings settings;
     private EditText inputEanText;
     private EditText inputIpAddress;
-    private EditText amountInput;
+    private EditText inputAmount;
+    private EditText inputFilename;
     private TextView ipAddressTextView;
     private TextView amountTextView;
 
@@ -38,20 +43,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-
         setContentView(R.layout.activity_main);
+        MobileAds.initialize(this, "ca-app-pub-6403268384265634~1982638427");
         settings = new Settings(this);
+
         inputEanText = (EditText) findViewById(R.id.inputEanText);
         inputEanText.requestFocus();
 
+        inputFilename = (EditText) findViewById(R.id.filenameEditText);
 
         articles = new ArrayList<>();
-        adapter = new ArticleListAdapter(this, R.layout.adapter_layout, articles);
+        listViewAdapter = new ArticleListAdapter(this, R.layout.adapter_layout, articles);
 
 
         list = (ListView) findViewById(R.id.listView);
-        list.setAdapter(adapter);
+        list.setAdapter(listViewAdapter);
         list.setFocusable(false);
+
+        AdView adView = (AdView) findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder().addTestDevice(AdRequest.DEVICE_ID_EMULATOR).build();
+//        AdRequest adRequest = new AdRequest.Builder().build();
+
+        adView.loadAd(adRequest);
 
 
         createIpAddressAlertDialog();
@@ -62,6 +75,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     }
+
 
     @Override
     public void onStop() {
@@ -76,7 +90,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         String data = settings.getArticles();
         if (data.length() > 0) {
             articles.addAll(convertDataToArrayList(settings.getArticles()));
-            adapter.notifyDataSetChanged();
+            listViewAdapter.notifyDataSetChanged();
         }
         refreshAmountTextView();
     }
@@ -87,9 +101,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onSaveInstanceState(outState);
     }
 
-    // it takes list of Articles and changes them into String. ean and amount are divided by . and each object by ;     ean.amount;ean.amount;ean.amount; etc
+    // It takes name and  list of Articles. Changes them into String. ean and amount are divided by . and each object by ;     NAME;ean.amount;ean.amount;ean.amount; etc
     private String convertArrayListToString() {
         StringBuffer sb = new StringBuffer();
+        sb.append(inputFilename.getText() + ";");
         for (Article a : articles) {
             sb.append(a.getEan()).append(".").append(a.getAmount()).append(";");
         }
@@ -102,19 +117,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onRestoreInstanceState(in);
         String data = in.getString("articles");
         articles.addAll(convertDataToArrayList(data));
-        adapter.notifyDataSetChanged();
+        listViewAdapter.notifyDataSetChanged();
     }
 
-    // takes a string a changes it to arrayList.  The format of string goes like this  ean.amount;ean.amount;ean.amount; etc 
+    // takes a string a changes it to arrayList.  The format of string goes like this  ean.amount;ean.amount;ean.amount; etc
     public ArrayList<Article> convertDataToArrayList(String data) {
-        String[] splittedData = data.split(";");
+        String[] dataAsArray = data.split(";");
+        boolean first = true;
         ArrayList<Article> articles = new ArrayList<>();
-        for (String s : splittedData) {
+        for (String s : dataAsArray) {
+            if (first) {
+                first = false;
+                continue;
+            }
             String[] temp = s.split("\\.");
+
             articles.add(new Article(temp[0], Integer.parseInt(temp[1])));
         }
         return articles;
     }
+
 
     // This creates a dialog window  that shows up after clicking on item in listView
     private void createListItemAlertDialog() {
@@ -124,7 +146,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         view.findViewById(R.id.editButton).setOnClickListener(MainActivity.this);
         view.findViewById(R.id.addButton).setOnClickListener(MainActivity.this);
         amountTextView = (TextView) view.findViewById(R.id.currentAmountTextView);
-        amountInput = (EditText) view.findViewById(R.id.amountInput);
+        inputAmount = (EditText) view.findViewById(R.id.amountInput);
         deleteDialog = new AlertDialog.Builder(this).setView(view).create();
     }
 
@@ -159,6 +181,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private boolean handleEnterKey(int keyCode, KeyEvent keyevent) {
         if ((keyevent.getAction() == KeyEvent.ACTION_DOWN) && (keyCode == KeyEvent.KEYCODE_ENTER)) {
             addEan();
+            hideKeyboard(inputEanText);
             refreshAmountTextView();
             return true;
         }
@@ -178,7 +201,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             iterateListForMatch(articles, ean);
         }
-        adapter.notifyDataSetChanged();
+        listViewAdapter.notifyDataSetChanged();
         inputEanText.setText("");
     }
 
@@ -232,7 +255,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return amount;
     }
 
-    // It shows dialog window whe item from listView is selected
+    // It shows dialog window when item from listView is selected
     private void setSelectedItemListener() {
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -244,7 +267,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void handleItemSelected(int position) {
         selectedIndex = position;
-        amountTextView.setText("Současný počet: " + articles.get(selectedIndex).getAmount());
+        amountTextView.setText("Současné množství: " + articles.get(selectedIndex).getAmount());
         deleteDialog.show();
     }
 
@@ -288,41 +311,41 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void handleAddButton() {
-        hideKeyboard(amountInput);
-        if (!amountInput.getText().toString().isEmpty()) {
+        hideKeyboard(inputAmount);
+        if (!inputAmount.getText().toString().isEmpty()) {
             addAmount();
         }
         deleteDialog.dismiss();
     }
 
     private void addAmount() {
-        BigInteger amount = new BigInteger(amountInput.getText().toString());
+        BigInteger amount = new BigInteger(inputAmount.getText().toString());
         if (amount.intValue() > 100000 || amount.intValue() < 0) {
             Toast.makeText(this, "Příliš velké nebo malé číslo", Toast.LENGTH_SHORT).show();
         } else {
-            amountInput.setText("");
+            inputAmount.setText("");
             String ean = articles.get(selectedIndex).getEan();
             int newAmount = articles.get(selectedIndex).getAmount() + amount.intValue();
             articles.set(selectedIndex, new Article(ean, newAmount));
-            adapter.notifyDataSetChanged();
+            listViewAdapter.notifyDataSetChanged();
         }
     }
 
     private void handleCancelButton() {
-        hideKeyboard(amountInput);
+        hideKeyboard(inputAmount);
         deleteDialog.dismiss();
     }
 
     private void handleEditAmountButton() {
-        hideKeyboard(amountInput);
-        if (!amountInput.getText().toString().isEmpty()) {
+        hideKeyboard(inputAmount);
+        if (!inputAmount.getText().toString().isEmpty()) {
             changeAmount();
         }
         deleteDialog.dismiss();
     }
 
     private void changeAmount() {
-        BigInteger amount = new BigInteger(amountInput.getText().toString());
+        BigInteger amount = new BigInteger(inputAmount.getText().toString());
         if (amount.intValue() > 100000 || amount.intValue() < 0) {
             Toast.makeText(this, "Příliš velké nebo malé číslo", Toast.LENGTH_SHORT).show();
         } else {
@@ -331,17 +354,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void makeChangeAndNotifyAdapter(BigInteger amount) {
-        amountInput.setText("");
+        inputAmount.setText("");
         String ean = articles.get(selectedIndex).getEan();
         articles.set(selectedIndex, new Article(ean, amount.intValue()));
-        adapter.notifyDataSetChanged();
+        listViewAdapter.notifyDataSetChanged();
     }
 
 
     private void handleDeleteItemButton() {
-        hideKeyboard(amountInput);
+        hideKeyboard(inputAmount);
         articles.remove((articles.get(selectedIndex)));
-        adapter.notifyDataSetChanged();
+        listViewAdapter.notifyDataSetChanged();
         deleteDialog.dismiss();
     }
 
@@ -378,20 +401,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void handleExportButton() {
         hideKeyboard(inputEanText);
         String data = convertArrayListToString();
-        if (data.length() == 0) {
-            Toast.makeText(this, "Není vložený žádný ean", Toast.LENGTH_SHORT).show();
+        if (listViewAdapter.getCount() == 0) {
+            createAndDisplayToast("Není vložený žádný ean");
         } else if (settings.getIp().length() == 0) {
-            Toast.makeText(this, "Není vložená IP adresa", Toast.LENGTH_SHORT).show();
+            createAndDisplayToast("Není vložená IP adresa");
+        } else if (!fileHasName()) {
+            createAndDisplayToast("Není vložený název souboru");
         } else {
             sendData(data);
+//            createAndDisplayToast("Data byla vyexportována");
         }
+    }
+
+    private void createAndDisplayToast(String text) {
+        Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
+    }
+
+
+    private boolean fileHasName() {
+        return inputFilename.getText().length() > 0;
     }
 
 
     private void sendData(String data) {
-        Client sender = new Client(settings.getIp());
+        Client sender = new Client(settings.getIp(), this);
         sender.execute(data.toString());
-        Toast.makeText(this, "Data byla vyexportována", Toast.LENGTH_SHORT).show();
     }
 
 
@@ -423,7 +457,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void deleteAll() {
         articles.clear();
-        adapter.notifyDataSetChanged();
+        listViewAdapter.notifyDataSetChanged();
+        inputFilename.setText("");
         refreshAmountTextView();
     }
 
