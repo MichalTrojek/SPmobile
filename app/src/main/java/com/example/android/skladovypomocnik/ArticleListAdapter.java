@@ -24,7 +24,8 @@ public class ArticleListAdapter extends ArrayAdapter<Article> {
     public View getView(int position, View convertView, ViewGroup parent) {
         String ean = getItem(position).getEan();
         int amount = getItem(position).getAmount();
-        Article article = new Article(ean, amount);
+        String name = getItem(position).getName();
+
 
         LayoutInflater inflater = LayoutInflater.from(context);
         convertView = inflater.inflate(resource, parent, false);
@@ -32,10 +33,12 @@ public class ArticleListAdapter extends ArrayAdapter<Article> {
 
         TextView eanTextView = (TextView) convertView.findViewById(R.id.eanTextView);
         TextView amountTextView = (TextView) convertView.findViewById(R.id.amountTextView);
+        TextView nameTextView = (TextView) convertView.findViewById(R.id.nameTexView);
 
 
         eanTextView.setText(ean);
         amountTextView.setText(String.format("%d", amount));
+        nameTextView.setText(name);
 
 
         return convertView;

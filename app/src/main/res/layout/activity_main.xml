@@ -144,22 +144,12 @@
             android:layout_height="wrap_content"
             ads:adSize="BANNER"
             ads:adUnitId="ca-app-pub-6403268384265634/9240088016"
-
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
     </LinearLayout>
 
-    <!--<com.google.android.gms.ads.AdView xmlns:ads="http://schemas.android.com/apk/res-auto"-->
-    <!--android:id="@+id/adView"-->
-    <!--android:layout_width="wrap_content"-->
-    <!--android:layout_height="wrap_content"-->
-    <!--ads:adSize="BANNER"-->
-    <!--ads:adUnitId="ca-app-pub-6403268384265634/9240088016"-->
 
-    <!--app:layout_constraintBottom_toBottomOf="parent"-->
-    <!--app:layout_constraintEnd_toEndOf="parent"-->
-    <!--app:layout_constraintStart_toStartOf="parent" />-->
 
 
 </android.support.constraint.ConstraintLayout>

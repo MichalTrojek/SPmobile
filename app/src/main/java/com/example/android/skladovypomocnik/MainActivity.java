@@ -11,6 +11,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,6 +21,7 @@ import com.google.android.gms.ads.MobileAds;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -37,15 +39,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private EditText inputAmount;
     private EditText inputFilename;
     private TextView ipAddressTextView;
+    private TextView loadingInfoTextView;
+    private TextView bookNameTextView;
     private TextView amountTextView;
+    private HashMap<String, String> mapOfNames = Model.getInstance().getMapOfNames();
+    private ProgressBar progress;
+    private AlertDialog loadingDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_main);
         MobileAds.initialize(this, "ca-app-pub-6403268384265634~1982638427");
         settings = new Settings(this);
+
+        createLoadingDialog();
+        loadDatabaseData();
+
 
         inputEanText = (EditText) findViewById(R.id.inputEanText);
         inputEanText.requestFocus();
@@ -60,11 +70,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         list.setAdapter(listViewAdapter);
         list.setFocusable(false);
 
-        AdView adView = (AdView) findViewById(R.id.adView);
-        AdRequest adRequest = new AdRequest.Builder().addTestDevice(AdRequest.DEVICE_ID_EMULATOR).build();
-//        AdRequest adRequest = new AdRequest.Builder().build();
-
-        adView.loadAd(adRequest);
+        handleAds();
 
 
         createIpAddressAlertDialog();
@@ -76,13 +82,37 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
+    private void loadDatabaseData() {
+        if (mapOfNames == null) {
+            DatabaseLoaderAsyncTask databaseLoader = new DatabaseLoaderAsyncTask(this, loadingDialog, progress, loadingInfoTextView);
+            databaseLoader.execute();
+        }
+    }
 
+    private void handleAds() {
+        AdView adView = (AdView) findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder().addTestDevice(AdRequest.DEVICE_ID_EMULATOR).build();
+        adView.loadAd(adRequest);
+    }
+
+    // Converts array list to a String and saves it in SharedPreferences.
     @Override
     public void onStop() {
         super.onStop();
         settings.setArticles(convertArrayListToString());
     }
+    // It takes name and  list of Articles. Changes them into String. ean and amount are divided by . and each object by ;     Filename;ean.amount.name;ean.amount.name;ean.amount.name; etc
+    private String convertArrayListToString() {
+        StringBuffer sb = new StringBuffer();
+        sb.append(inputFilename.getText() + ";");
+        for (Article a : articles) {
+            System.out.println("amount " + a.getAmount());
+            sb.append(a.getEan()).append(".").append(a.getAmount()).append(".").append(a.getName()).append(";");
+        }
+        return sb.toString();
+    }
 
+    // Loads String from SharedPreferences, recreates ArrayList from it and refreshes UI.
     @Override
     public void onStart() {
         super.onStart();
@@ -94,33 +124,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         refreshAmountTextView();
     }
-
-    @Override
-    public void onSaveInstanceState(Bundle outState) {
-        outState.putString("articles", convertArrayListToString());
-        super.onSaveInstanceState(outState);
-    }
-
-    // It takes name and  list of Articles. Changes them into String. ean and amount are divided by . and each object by ;     NAME;ean.amount;ean.amount;ean.amount; etc
-    private String convertArrayListToString() {
-        StringBuffer sb = new StringBuffer();
-        sb.append(inputFilename.getText() + ";");
-        for (Article a : articles) {
-            sb.append(a.getEan()).append(".").append(a.getAmount()).append(";");
-        }
-        return sb.toString();
-    }
-
-
-    @Override
-    public void onRestoreInstanceState(Bundle in) {
-        super.onRestoreInstanceState(in);
-        String data = in.getString("articles");
-        articles.addAll(convertDataToArrayList(data));
-        listViewAdapter.notifyDataSetChanged();
-    }
-
-    // takes a string a changes it to arrayList.  The format of string goes like this  ean.amount;ean.amount;ean.amount; etc
+    // takes a string a changes it to arrayList.  The format of string goes like this  ean.amount.name;ean.amount.name;ean.amount.name; etc
     public ArrayList<Article> convertDataToArrayList(String data) {
         String[] dataAsArray = data.split(";");
         boolean first = true;
@@ -132,41 +136,33 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
             String[] temp = s.split("\\.");
 
-            articles.add(new Article(temp[0], Integer.parseInt(temp[1])));
+            articles.add(new Article(temp[0], Integer.parseInt(temp[1]), temp[2]));
         }
         return articles;
     }
 
-
-    // This creates a dialog window  that shows up after clicking on item in listView
-    private void createListItemAlertDialog() {
-        View view = getLayoutInflater().inflate(R.layout.edit_listview_dialog, null);
-        view.findViewById(R.id.deleteButton).setOnClickListener(MainActivity.this);
-        view.findViewById(R.id.cancelButton).setOnClickListener(MainActivity.this);
-        view.findViewById(R.id.editButton).setOnClickListener(MainActivity.this);
-        view.findViewById(R.id.addButton).setOnClickListener(MainActivity.this);
-        amountTextView = (TextView) view.findViewById(R.id.currentAmountTextView);
-        inputAmount = (EditText) view.findViewById(R.id.amountInput);
-        deleteDialog = new AlertDialog.Builder(this).setView(view).create();
+    private void refreshAmountTextView() {
+        TextView totalAmountTextView = (TextView) findViewById(R.id.totalAmountTextView);
+        TextView totalEanAmountTextView = (TextView) findViewById(R.id.totalEanAmountTextView);
+        totalAmountTextView.setText("Celkové množství:  " + calculateAmount());
+        totalEanAmountTextView.setText("Počet titulů: " + articles.size());
     }
 
-    // This creates a dialog window that shows up after pressing network settings button
-    private void createIpAddressAlertDialog() {
-        View view = getLayoutInflater().inflate(R.layout.edit_ip_dialog, null);
-        view.findViewById(R.id.editIpButton).setOnClickListener(MainActivity.this);
-        view.findViewById(R.id.backButton).setOnClickListener(MainActivity.this);
-
-        inputIpAddress = (EditText) view.findViewById(R.id.editIpText);
-        ipAddressTextView = (TextView) view.findViewById(R.id.ipAddressTextView);
-        ipAddressTextView.setText("IP Adresa : " + settings.getIp());
-        ipDialog = new AlertDialog.Builder(this).setView(view).create();
+    private int calculateAmount() {
+        int amount = 0;
+        for (Article a : articles) {
+            amount += a.getAmount();
+        }
+        return amount;
     }
 
-    private void setButtonListeners() {
-        this.findViewById(R.id.exportButton).setOnClickListener(this);
-        this.findViewById(R.id.deleteAllButton).setOnClickListener(this);
-        this.findViewById(R.id.networkSettingsButton).setOnClickListener(this);
-    }
+
+
+
+
+
+
+
 
     // when enter key is pressed, value in inputEanTextview is added to listView and amount info is refreshed
     private void setInputListener() {
@@ -195,18 +191,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+
     private void handleAddingEan(String ean) {
         if (articles.isEmpty()) {
-            articles.add(0, new Article(ean, 1));
+            articles.add(0, new Article(ean, 1, lookUpNameInDatabase(ean)));
         } else {
-            iterateListForMatch(articles, ean);
+            iterateListForMatch(ean);
         }
         listViewAdapter.notifyDataSetChanged();
         inputEanText.setText("");
     }
 
 
-    private void iterateListForMatch(ArrayList<Article> articles, String ean) {
+    private void iterateListForMatch(String ean) {
         searchListForItemByEan(ean);
         addNewItemIfNotFound(ean);
     }
@@ -231,31 +228,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         int amount = a.getAmount() + 1;
         String currentEan = a.getEan();
         articles.remove(a);
-        articles.add(0, new Article(currentEan, amount));
+        articles.add(0, new Article(currentEan, amount, a.getName()));
     }
 
     private void addNewItemIfNotFound(String ean) {
         if (!containsEan) {
-            articles.add(0, new Article(ean, 1));
+            articles.add(0, new Article(ean, 1, lookUpNameInDatabase(ean)));
         }
     }
 
-    private void refreshAmountTextView() {
-        TextView totalAmountTextView = (TextView) findViewById(R.id.totalAmountTextView);
-        TextView totalEanAmountTextView = (TextView) findViewById(R.id.totalEanAmountTextView);
-        totalAmountTextView.setText("Celkové množství:  " + calculateAmount());
-        totalEanAmountTextView.setText("Počet titulů: " + articles.size());
-    }
-
-    private int calculateAmount() {
-        int amount = 0;
-        for (Article a : articles) {
-            amount += a.getAmount();
+    private String lookUpNameInDatabase(String ean) {
+        String name = Model.getInstance().getName(ean);
+        if (name == null) {
+            name = "NÁZEV NENALEZEN";
         }
-        return amount;
+        return name;
     }
 
-    // It shows dialog window when item from listView is selected
+
+    // This one is called when user selects item from listView, it calls a new window that offers delete row, edit ammount and add amount functions.
     private void setSelectedItemListener() {
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -267,6 +258,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void handleItemSelected(int position) {
         selectedIndex = position;
+        bookNameTextView.setText(articles.get(selectedIndex).getName());
         amountTextView.setText("Současné množství: " + articles.get(selectedIndex).getAmount());
         deleteDialog.show();
     }
@@ -326,7 +318,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             inputAmount.setText("");
             String ean = articles.get(selectedIndex).getEan();
             int newAmount = articles.get(selectedIndex).getAmount() + amount.intValue();
-            articles.set(selectedIndex, new Article(ean, newAmount));
+            articles.set(selectedIndex, new Article(ean, newAmount, articles.get(selectedIndex).getName()));
             listViewAdapter.notifyDataSetChanged();
         }
     }
@@ -356,7 +348,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void makeChangeAndNotifyAdapter(BigInteger amount) {
         inputAmount.setText("");
         String ean = articles.get(selectedIndex).getEan();
-        articles.set(selectedIndex, new Article(ean, amount.intValue()));
+        articles.set(selectedIndex, new Article(ean, amount.intValue(), articles.get(selectedIndex).getName()));
         listViewAdapter.notifyDataSetChanged();
     }
 
@@ -409,7 +401,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             createAndDisplayToast("Není vložený název souboru");
         } else {
             sendData(data);
-//            createAndDisplayToast("Data byla vyexportována");
         }
     }
 
@@ -466,5 +457,42 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         ipDialog.show();
     }
 
+    // This creates a dialog window  that shows up after clicking on item in listView
+    private void createListItemAlertDialog() {
+        View view = getLayoutInflater().inflate(R.layout.edit_listview_dialog, null);
+        view.findViewById(R.id.deleteButton).setOnClickListener(MainActivity.this);
+        view.findViewById(R.id.cancelButton).setOnClickListener(MainActivity.this);
+        view.findViewById(R.id.editButton).setOnClickListener(MainActivity.this);
+        view.findViewById(R.id.addButton).setOnClickListener(MainActivity.this);
+        amountTextView = (TextView) view.findViewById(R.id.currentAmountTextView);
+        bookNameTextView = (TextView) view.findViewById(R.id.bookNameTextView);
+        inputAmount = (EditText) view.findViewById(R.id.amountInput);
+        deleteDialog = new AlertDialog.Builder(this).setView(view).create();
+    }
+
+    // This creates a dialog window that shows up after pressing network settings button
+    private void createIpAddressAlertDialog() {
+        View view = getLayoutInflater().inflate(R.layout.edit_ip_dialog, null);
+        view.findViewById(R.id.editIpButton).setOnClickListener(MainActivity.this);
+        view.findViewById(R.id.backButton).setOnClickListener(MainActivity.this);
+        inputIpAddress = (EditText) view.findViewById(R.id.editIpText);
+        ipAddressTextView = (TextView) view.findViewById(R.id.ipAddressTextView);
+        ipAddressTextView.setText("IP Adresa : " + settings.getIp());
+        ipDialog = new AlertDialog.Builder(this).setView(view).create();
+    }
+
+    // This create a dialog windows that shows up after application is started for first time
+    private void createLoadingDialog() {
+        View view = getLayoutInflater().inflate(R.layout.start_loading, null);
+        progress = view.findViewById(R.id.progressBar);
+        loadingInfoTextView = (TextView) view.findViewById(R.id.loadingInfoTextView);
+        loadingDialog = new AlertDialog.Builder(this).setView(view).create();
+    }
+
+    private void setButtonListeners() {
+        this.findViewById(R.id.exportButton).setOnClickListener(this);
+        this.findViewById(R.id.deleteAllButton).setOnClickListener(this);
+        this.findViewById(R.id.networkSettingsButton).setOnClickListener(this);
+    }
 
 }

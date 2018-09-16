@@ -7,20 +7,36 @@
 
     <TextView
         android:id="@+id/eanTextView"
-        android:layout_width="150dp"
-        android:layout_height="30dp"
-        android:textAlignment="center"
+        android:layout_width="128dp"
+        android:layout_height="wrap_content"
+        android:textAlignment="viewStart"
+        android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="124124123123123" />
 
     <TextView
         android:id="@+id/amountTextView"
-        android:layout_width="0dp"
-        android:layout_height="30dp"
-        android:textAlignment="center"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:textAlignment="textStart"
+        android:textStyle="bold"
         app:layout_constraintStart_toEndOf="@+id/eanTextView"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="@+id/eanTextView"
+        tools:text="122" />
+
+    <TextView
+        android:id="@+id/nameTexView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxLength="25"
+        android:maxLines="1"
+        android:text="ARISTOKRATKA"
+        android:textAlignment="viewStart"
+        android:textSize="12sp"
+        app:layout_constraintStart_toStartOf="@+id/eanTextView"
+        app:layout_constraintTop_toBottomOf="@+id/eanTextView" />
 
 
 </android.support.constraint.ConstraintLayout>
