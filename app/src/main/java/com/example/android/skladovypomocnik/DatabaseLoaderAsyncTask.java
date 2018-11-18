@@ -10,7 +10,7 @@ import android.widget.Toast;
 
 import java.util.HashMap;
 
-public class DatabaseLoaderAsyncTask extends AsyncTask<Void, Integer, HashMap<String, String>> {
+public class DatabaseLoaderAsyncTask extends AsyncTask<Void, Integer, HashMap<String, Item>> {
 
 
     private Context context;
@@ -43,9 +43,9 @@ public class DatabaseLoaderAsyncTask extends AsyncTask<Void, Integer, HashMap<St
 
 
     @Override
-    protected HashMap<String, String> doInBackground(Void... voids) {
-        HashMap<String, String> map = new HashMap<>();
-        Cursor cursor = db.getDb().rawQuery("Select EAN, NAME from articles", new String[]{});
+    protected HashMap<String, Item> doInBackground(Void... voids) {
+        HashMap<String, Item> map = new HashMap<>();
+        Cursor cursor = db.getDb().rawQuery("Select EAN, NAME, PRICE from articles", new String[]{});
         cursor.moveToFirst();
         int counter = 0;
         while (!cursor.isAfterLast()) {
@@ -53,7 +53,9 @@ public class DatabaseLoaderAsyncTask extends AsyncTask<Void, Integer, HashMap<St
             publishProgress(counter);
             String ean = cursor.getString(0);
             String name = cursor.getString(1);
-            map.put(ean, name);
+            String price = cursor.getString(2);
+
+            map.put(ean, new Item(ean, name, price));
             cursor.moveToNext();
         }
         return map;
@@ -67,9 +69,9 @@ public class DatabaseLoaderAsyncTask extends AsyncTask<Void, Integer, HashMap<St
 
 
     @Override
-    protected void onPostExecute(HashMap<String, String> map) {
+    protected void onPostExecute(HashMap<String, Item> map) {
         db.close();
-        Model.getInstance().setMapOfNames(map);
+        Model.getInstance().setNamesAndPrices(map);
         Toast.makeText(context, "Nahráno " + map.size() + " položek", Toast.LENGTH_SHORT).show();
         dialog.hide();
     }

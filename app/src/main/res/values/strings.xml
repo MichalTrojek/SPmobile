@@ -11,7 +11,7 @@
     <string name="editIpAddressButton">Změnit IP Adresu</string>
     <string name="inputIpAddressHint">Vlož IP Adresu</string>
     <string name="infoLabel">(c) 2018, Michal Trojek</string>
-    <string name="versionNumber">Verze: 6</string>
+    <string name="versionNumber">Verze: 20</string>
     <string name="addAmountButton">Přidat</string>
     <string name="totalAmountTextView">Celkové množství: 0</string>
     <string name="totalEanAmountTextView">Počet titulů: 0</string>

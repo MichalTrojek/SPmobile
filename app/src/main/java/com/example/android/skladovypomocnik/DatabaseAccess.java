@@ -28,7 +28,12 @@ public class DatabaseAccess {
 
 
     public void open() {
-        this.db = openHelper.getReadableDatabase();
+        try {
+            this.db = openHelper.getReadableDatabase();
+        } catch (Exception e) {
+            System.out.println("SQL EXCEPTION in onCreate");
+            e.printStackTrace();
+        }
     }
 
 
@@ -38,13 +43,13 @@ public class DatabaseAccess {
         }
     }
 
-    public long getTableSize(){
-        long count = DatabaseUtils.queryNumEntries(db,"articles");
+    public long getTableSize() {
+        long count = DatabaseUtils.queryNumEntries(db, "articles");
         return count;
     }
 
     public SQLiteDatabase getDb() {
-         return this.db;
+        return this.db;
     }
 
     public String getBook(String ean) {
@@ -62,11 +67,11 @@ public class DatabaseAccess {
         return "Název není v databázi";
     }
 
-    public HashMap<String, String> allData(){
+    public HashMap<String, String> allData() {
         HashMap<String, String> map = new HashMap<>();
         Cursor cursor = db.rawQuery("Select EAN, NAME from articles", new String[]{});
         cursor.moveToFirst();
-        while(!cursor.isAfterLast()){
+        while (!cursor.isAfterLast()) {
             String ean = cursor.getString(0);
             String name = cursor.getString(1);
             map.put(ean, name);
@@ -74,9 +79,6 @@ public class DatabaseAccess {
         }
         return map;
     }
-
-
-
 
 
 }

@@ -19,7 +19,7 @@
         android:id="@+id/amountTextView"
         android:layout_width="55dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="64dp"
         android:textAlignment="textStart"
         android:textStyle="bold"
         app:layout_constraintStart_toEndOf="@+id/eanTextView"
@@ -30,13 +30,19 @@
         android:id="@+id/nameTexView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:maxLength="25"
+        android:maxLength="30"
         android:maxLines="1"
-        android:text="ARISTOKRATKA"
         android:textAlignment="viewStart"
         android:textSize="12sp"
         app:layout_constraintStart_toStartOf="@+id/eanTextView"
         app:layout_constraintTop_toBottomOf="@+id/eanTextView" />
+
+    <TextView
+        android:id="@+id/priceTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="18dp"
+        app:layout_constraintStart_toStartOf="@+id/amountTextView"
+        app:layout_constraintTop_toBottomOf="@+id/amountTextView" />
 
 
 </android.support.constraint.ConstraintLayout>

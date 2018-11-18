@@ -16,6 +16,7 @@ public class Client extends AsyncTask<String, Void, Void> {
     private int port = 8889;
     private Context context;
     private String ip;
+    private String exception;
 
     public Client(String ip, Context c) {
         this.ip = ip;
@@ -35,6 +36,7 @@ public class Client extends AsyncTask<String, Void, Void> {
             e.printStackTrace();
         } catch (IOException e) {
             connectedToServer = false; //  this means that server is offline
+            exception = e.getMessage();
             e.printStackTrace();
         }
         return null;
@@ -46,7 +48,7 @@ public class Client extends AsyncTask<String, Void, Void> {
         if (connectedToServer) {
             Toast.makeText(context, "Data vyexportována.", Toast.LENGTH_SHORT).show();
         } else {
-            Toast.makeText(context, "Exportování selhalo.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "Exportování selhalo. \n" + exception, Toast.LENGTH_SHORT).show();
         }
     }
 

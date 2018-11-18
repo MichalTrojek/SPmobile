@@ -25,6 +25,7 @@ public class ArticleListAdapter extends ArrayAdapter<Article> {
         String ean = getItem(position).getEan();
         int amount = getItem(position).getAmount();
         String name = getItem(position).getName();
+        String price = getItem(position).getPrice();
 
 
         LayoutInflater inflater = LayoutInflater.from(context);
@@ -34,11 +35,12 @@ public class ArticleListAdapter extends ArrayAdapter<Article> {
         TextView eanTextView = (TextView) convertView.findViewById(R.id.eanTextView);
         TextView amountTextView = (TextView) convertView.findViewById(R.id.amountTextView);
         TextView nameTextView = (TextView) convertView.findViewById(R.id.nameTexView);
-
+        TextView priceTextView = (TextView) convertView.findViewById(R.id.priceTextView);
 
         eanTextView.setText(ean);
         amountTextView.setText(String.format("%d", amount));
         nameTextView.setText(name);
+        priceTextView.setText(String.format("%s,- Kč", price.replace(".00", "")));
 
 
         return convertView;

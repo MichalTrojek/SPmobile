@@ -1,13 +1,12 @@
 package com.example.android.skladovypomocnik;
 
 import java.util.HashMap;
-import java.util.List;
 
 public class Model {
 
     private static Model INSTANCE;
-    private HashMap<String, String> mapOfNames;
-    private List<Article> articles;
+    private HashMap<String, Item> mapOfNames;
+
 
     public Model() {
 
@@ -22,16 +21,31 @@ public class Model {
     }
 
 
-    public void setMapOfNames(HashMap<String, String> mapOfNames) {
+    public void setNamesAndPrices(HashMap<String, Item> mapOfNames) {
         this.mapOfNames = mapOfNames;
     }
 
-    public HashMap<String, String> getMapOfNames() {
+    public HashMap<String, Item> getNamesAndPrices() {
         return this.mapOfNames;
     }
 
     public String getName(String ean) {
-        return mapOfNames.get(ean);
+        try {
+            return mapOfNames.get(ean).getName();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "NÁZEV NENALEZEN";
+    }
+
+
+    public String getPrice(String ean) {
+        try {
+            return mapOfNames.get(ean).getPrice();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "***";
     }
 
 

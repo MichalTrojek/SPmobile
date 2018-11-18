@@ -18,14 +18,15 @@ import android.widget.Toast;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
+import com.google.gson.Gson;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
-    private static final String TAG = MainActivity.class.getName();
     private ListView list;
     private ArrayList<Article> articles;
     private ArticleListAdapter listViewAdapter;
@@ -42,7 +43,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private TextView loadingInfoTextView;
     private TextView bookNameTextView;
     private TextView amountTextView;
-    private HashMap<String, String> mapOfNames = Model.getInstance().getMapOfNames();
     private ProgressBar progress;
     private AlertDialog loadingDialog;
 
@@ -54,6 +54,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         settings = new Settings(this);
 
         createLoadingDialog();
+
         loadDatabaseData();
 
 
@@ -83,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void loadDatabaseData() {
-        if (mapOfNames == null) {
+        if (Model.getInstance().getNamesAndPrices() == null) {
             DatabaseLoaderAsyncTask databaseLoader = new DatabaseLoaderAsyncTask(this, loadingDialog, progress, loadingInfoTextView);
             databaseLoader.execute();
         }
@@ -95,51 +96,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         adView.loadAd(adRequest);
     }
 
-    // Converts array list to a String and saves it in SharedPreferences.
     @Override
     public void onStop() {
         super.onStop();
-        settings.setArticles(convertArrayListToString());
-    }
-    // It takes name and  list of Articles. Changes them into String. ean and amount are divided by . and each object by ;     Filename;ean.amount.name;ean.amount.name;ean.amount.name; etc
-    private String convertArrayListToString() {
-        StringBuffer sb = new StringBuffer();
-        sb.append(inputFilename.getText() + ";");
-        for (Article a : articles) {
-            System.out.println("amount " + a.getAmount());
-            sb.append(a.getEan()).append(".").append(a.getAmount()).append(".").append(a.getName()).append(";");
-        }
-        return sb.toString();
+        settings.setArticles(articles);
     }
 
-    // Loads String from SharedPreferences, recreates ArrayList from it and refreshes UI.
     @Override
     public void onStart() {
         super.onStart();
         articles.clear();
-        String data = settings.getArticles();
-        if (data.length() > 0) {
-            articles.addAll(convertDataToArrayList(settings.getArticles()));
-            listViewAdapter.notifyDataSetChanged();
-        }
+        articles.addAll(settings.getArticles());
+        listViewAdapter.notifyDataSetChanged();
         refreshAmountTextView();
     }
-    // takes a string a changes it to arrayList.  The format of string goes like this  ean.amount.name;ean.amount.name;ean.amount.name; etc
-    public ArrayList<Article> convertDataToArrayList(String data) {
-        String[] dataAsArray = data.split(";");
-        boolean first = true;
-        ArrayList<Article> articles = new ArrayList<>();
-        for (String s : dataAsArray) {
-            if (first) {
-                first = false;
-                continue;
-            }
-            String[] temp = s.split("\\.");
 
-            articles.add(new Article(temp[0], Integer.parseInt(temp[1]), temp[2]));
-        }
-        return articles;
-    }
 
     private void refreshAmountTextView() {
         TextView totalAmountTextView = (TextView) findViewById(R.id.totalAmountTextView);
@@ -155,13 +126,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         return amount;
     }
-
-
-
-
-
-
-
 
 
     // when enter key is pressed, value in inputEanTextview is added to listView and amount info is refreshed
@@ -194,7 +158,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void handleAddingEan(String ean) {
         if (articles.isEmpty()) {
-            articles.add(0, new Article(ean, 1, lookUpNameInDatabase(ean)));
+            articles.add(0, new Article(ean, 1, lookUpNameInDatabase(ean), lookUpPriceInDatabase(ean)));
         } else {
             iterateListForMatch(ean);
         }
@@ -228,12 +192,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         int amount = a.getAmount() + 1;
         String currentEan = a.getEan();
         articles.remove(a);
-        articles.add(0, new Article(currentEan, amount, a.getName()));
+        articles.add(0, new Article(currentEan, amount, a.getName(), a.getPrice()));
     }
 
     private void addNewItemIfNotFound(String ean) {
         if (!containsEan) {
-            articles.add(0, new Article(ean, 1, lookUpNameInDatabase(ean)));
+            articles.add(0, new Article(ean, 1, lookUpNameInDatabase(ean), lookUpPriceInDatabase(ean)));
         }
     }
 
@@ -243,6 +207,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             name = "NÁZEV NENALEZEN";
         }
         return name;
+    }
+
+    private String lookUpPriceInDatabase(String ean) {
+        String price = Model.getInstance().getPrice(ean);
+        if (price == null) {
+            price = "***";
+        }
+        return price;
     }
 
 
@@ -318,7 +290,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             inputAmount.setText("");
             String ean = articles.get(selectedIndex).getEan();
             int newAmount = articles.get(selectedIndex).getAmount() + amount.intValue();
-            articles.set(selectedIndex, new Article(ean, newAmount, articles.get(selectedIndex).getName()));
+            articles.set(selectedIndex, new Article(ean, newAmount, articles.get(selectedIndex).getName(), articles.get(selectedIndex).getPrice()));
             listViewAdapter.notifyDataSetChanged();
         }
     }
@@ -348,7 +320,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void makeChangeAndNotifyAdapter(BigInteger amount) {
         inputAmount.setText("");
         String ean = articles.get(selectedIndex).getEan();
-        articles.set(selectedIndex, new Article(ean, amount.intValue(), articles.get(selectedIndex).getName()));
+        articles.set(selectedIndex, new Article(ean, amount.intValue(), articles.get(selectedIndex).getName(), articles.get(selectedIndex).getPrice()));
         listViewAdapter.notifyDataSetChanged();
     }
 
@@ -392,7 +364,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void handleExportButton() {
         hideKeyboard(inputEanText);
-        String data = convertArrayListToString();
         if (listViewAdapter.getCount() == 0) {
             createAndDisplayToast("Není vložený žádný ean");
         } else if (settings.getIp().length() == 0) {
@@ -400,9 +371,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else if (!fileHasName()) {
             createAndDisplayToast("Není vložený název souboru");
         } else {
+            String data = convertListToJson();
             sendData(data);
         }
     }
+
+    private String convertListToJson() {
+        Gson gson = new Gson();
+        String fileName = inputFilename.getText().toString();
+        Map<String, ArrayList<Article>> nameAndList = new HashMap<>();
+        nameAndList.put(fileName, articles);
+        String json = gson.toJson(nameAndList);
+        return json;
+    }
+
 
     private void createAndDisplayToast(String text) {
         Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
@@ -417,6 +399,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void sendData(String data) {
         Client sender = new Client(settings.getIp(), this);
         sender.execute(data.toString());
+    }
+
+    private String getFileName() {
+        String separator = "[name]";
+        StringBuilder sb = new StringBuilder();
+        String fileName = inputFilename.getText().toString();
+        sb.append(fileName).append(separator);
+        return sb.toString();
     }
 
 
