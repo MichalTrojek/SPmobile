@@ -29,6 +29,16 @@ public class Settings {
         editor.apply();
     }
 
+    public int getCurrentDatabaseVersion() {
+        return prefs.getInt("currentDbVersion", -99);
+    }
+
+    public void setCurrentDatabaseVersion(int currentDbVersion) {
+        editor = prefs.edit();
+        editor.putInt("currentDbVersion", currentDbVersion);
+        editor.apply();
+    }
+
 
     public void setArticles(ArrayList<Article> articles) {
         editor = prefs.edit();

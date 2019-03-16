@@ -5,6 +5,7 @@ import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
 
 import java.util.HashMap;
 
@@ -32,6 +33,7 @@ public class DatabaseAccess {
             this.db = openHelper.getReadableDatabase();
         } catch (Exception e) {
             System.out.println("SQL EXCEPTION in onCreate");
+            Log.d(TAG, "SQL EXCEPTION in onCreate");
             e.printStackTrace();
         }
     }

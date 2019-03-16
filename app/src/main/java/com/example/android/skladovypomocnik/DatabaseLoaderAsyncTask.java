@@ -74,6 +74,7 @@ public class DatabaseLoaderAsyncTask extends AsyncTask<Void, Integer, HashMap<St
         Model.getInstance().setNamesAndPrices(map);
         Toast.makeText(context, "Nahráno " + map.size() + " položek", Toast.LENGTH_SHORT).show();
         dialog.hide();
+        dialog.dismiss();
     }
 
 }

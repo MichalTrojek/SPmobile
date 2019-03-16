@@ -1,8 +1,18 @@
 package com.example.android.skladovypomocnik;
 
+import android.Manifest;
+import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.KeyEvent;
@@ -19,11 +29,23 @@ import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
 import com.google.gson.Gson;
+import com.jakewharton.processphoenix.ProcessPhoenix;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -45,6 +67,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private TextView amountTextView;
     private ProgressBar progress;
     private AlertDialog loadingDialog;
+    private String TAG = "MainActivity";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,12 +76,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.activity_main);
         MobileAds.initialize(this, "ca-app-pub-6403268384265634~1982638427");
         settings = new Settings(this);
-
-        createLoadingDialog();
-
-        loadDatabaseData();
-
-
+        askForPermission();
         inputEanText = (EditText) findViewById(R.id.inputEanText);
         inputEanText.requestFocus();
 
@@ -83,7 +102,94 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
-    private void loadDatabaseData() {
+    public void askForPermission() {
+        if (Build.VERSION.SDK_INT >= 23) {
+            if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED) {
+                // you already have a permission
+                checkForDatabaseUpdate();
+            } else {
+                // asks for permission
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+                Toast.makeText(MainActivity.this, "Čekejte", Toast.LENGTH_LONG).show();
+            }
+        } else { //you dont need to worry about these stuff below api level 23
+
+        }
+    }
+
+    //  After user allows permissions, it checks if the database is up to date. If not, it offers update.
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 1) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                checkForDatabaseUpdate();
+            } else {
+                Toast.makeText(MainActivity.this, "Čekejte", Toast.LENGTH_LONG).show();
+                preloadDatabaseData();
+            }
+        }
+    }
+
+
+    int onlineDbVersionNumber;
+
+    private void checkForDatabaseUpdate() {
+        Retrofit retrofit = new Retrofit.Builder().baseUrl(Api.BASE_URL).addConverterFactory(GsonConverterFactory.create()).build();
+        Api api = retrofit.create(Api.class);
+        Call<DatabaseVersion> call = api.getDatabaseVersionInfo();
+        call.enqueue(new Callback<DatabaseVersion>() {
+            @Override
+            public void onResponse(Call<DatabaseVersion> call, Response<DatabaseVersion> response) {
+                if (!response.isSuccessful()) {
+                    Toast.makeText(getApplicationContext(), "Dotaz nebyl úspešný" + response.code(), Toast.LENGTH_SHORT).show();
+                    return;
+                } else {
+                    DatabaseVersion version = response.body();
+                    onlineDbVersionNumber = Integer.valueOf(version.getDatabaseVersion());
+                    if (onlineDbVersionNumber > settings.getCurrentDatabaseVersion()) {
+                        updateFoundDialog(MainActivity.this);
+                    } else {
+                        preloadDatabaseData();
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<DatabaseVersion> call, Throwable t) {
+                preloadDatabaseData();
+                Toast.makeText(getApplicationContext(), "Nepřipojeno k internetu", Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void updateFoundDialog(Context context) {
+        new AlertDialog.Builder(context).setTitle("Aktualizace databaze").setMessage("Je dostupna aktualizace database.").setPositiveButton("Aktualizovat", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                updateDatabase();
+            }
+        }).setNegativeButton("Neaktualizovat", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                Toast.makeText(MainActivity.this, "Čekejte", Toast.LENGTH_LONG).show();
+                preloadDatabaseData();
+            }
+        }).show();
+    }
+
+    private void updateDatabase() {
+        try {
+            downloadDatabaseFromUrl("http://www.skladovypomocnik.cz/BooksDatabase.db");
+            Toast.makeText(this, "Stahování zahájeno, čekejte. Aplikace se po stáhnutí restartuje.", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void preloadDatabaseData() {
+        createLoadingDialog();
         if (Model.getInstance().getNamesAndPrices() == null) {
             DatabaseLoaderAsyncTask databaseLoader = new DatabaseLoaderAsyncTask(this, loadingDialog, progress, loadingInfoTextView);
             databaseLoader.execute();
@@ -376,6 +482,87 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+
+    private String tempPath = "/temp/";
+    private String databaseName = "BooksDatabase.db";
+    private BroadcastReceiver onDownloadComplete;
+    private DownloadManager dm;
+
+    private void downloadDatabaseFromUrl(String databaseUrl) {
+        deleteDatabaseIfExists();
+        //setups request
+        dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(databaseUrl)).setDescription("Stahování databáze").setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE).setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI).setDestinationInExternalPublicDir(tempPath, databaseName);
+
+
+        final long enqueueIdReference = dm.enqueue(request); // starts downloading by putting request into queue, returns unique long ID
+
+
+        // listens for download result.
+        onDownloadComplete = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
+                if (enqueueIdReference == id) {
+                    //Downloading finished
+                    String sdCard = Environment.getExternalStorageDirectory().toString();
+                    File sourceFile = new File(sdCard + "/temp/BooksDatabase.db");
+                    File destinationFile = new File("/data/data/com.mtr.spmobile/databases/BooksDatabase.db");
+                    if (!destinationFile.exists()) {
+                        File destinationFolder = new File("/data/data/com.mtr.spmobile/databases");
+                        destinationFolder.mkdirs();
+                    }
+                    try {
+                        copyFileFromExternalToInternalMemory(sourceFile, destinationFile);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        };
+
+
+        registerReceiver(onDownloadComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
+    }
+
+    public void copyFileFromExternalToInternalMemory(File src, File dst) throws IOException {
+        FileChannel inChannel = new FileInputStream(src).getChannel();
+        FileChannel outChannel = new FileOutputStream(dst).getChannel();
+        try {
+            inChannel.transferTo(0, inChannel.size(), outChannel);
+        } finally {
+            if (inChannel != null)
+                inChannel.close();
+            if (outChannel != null)
+                outChannel.close();
+        }
+        restartApplication();
+    }
+
+    private void restartApplication() {
+        settings.setCurrentDatabaseVersion(onlineDbVersionNumber);
+        ProcessPhoenix.triggerRebirth(MainActivity.this);
+    }
+
+
+    private void deleteDatabaseIfExists() {
+        File file = new File("/sdcard" + tempPath + databaseName);
+        if (file.exists()) {
+            file.delete();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        try {
+            unregisterReceiver(onDownloadComplete);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
     private String convertListToJson() {
         Gson gson = new Gson();
         String fileName = inputFilename.getText().toString();
@@ -399,14 +586,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void sendData(String data) {
         Client sender = new Client(settings.getIp(), this);
         sender.execute(data.toString());
-    }
-
-    private String getFileName() {
-        String separator = "[name]";
-        StringBuilder sb = new StringBuilder();
-        String fileName = inputFilename.getText().toString();
-        sb.append(fileName).append(separator);
-        return sb.toString();
     }
 
 
