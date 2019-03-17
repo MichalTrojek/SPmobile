@@ -111,7 +111,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             } else {
                 // asks for permission
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-                Toast.makeText(MainActivity.this, "Čekejte", Toast.LENGTH_LONG).show();
             }
         } else { //you dont need to worry about these stuff below api level 23
 
@@ -126,7 +125,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 checkForDatabaseUpdate();
             } else {
-                Toast.makeText(MainActivity.this, "Čekejte", Toast.LENGTH_LONG).show();
                 preloadDatabaseData();
             }
         }
@@ -173,10 +171,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }).setNegativeButton("Neaktualizovat", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                Toast.makeText(MainActivity.this, "Čekejte", Toast.LENGTH_LONG).show();
                 preloadDatabaseData();
             }
-        }).show();
+        }).setIcon(R.drawable.ic_file_download).show();
     }
 
     private void updateDatabase() {
@@ -189,11 +186,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void preloadDatabaseData() {
-        createLoadingDialog();
-        if (Model.getInstance().getNamesAndPrices() == null) {
-            DatabaseLoaderAsyncTask databaseLoader = new DatabaseLoaderAsyncTask(this, loadingDialog, progress, loadingInfoTextView);
-            databaseLoader.execute();
+        if (settings.getArticles().isEmpty() || settings.getArticles() == null) {
+            Toast.makeText(MainActivity.this, "Čekejte", Toast.LENGTH_LONG).show();
+            createLoadingDialog();
+            if (Model.getInstance().getNamesAndPrices() == null) {
+                DatabaseLoaderAsyncTask databaseLoader = new DatabaseLoaderAsyncTask(this, loadingDialog, progress, loadingInfoTextView);
+                databaseLoader.execute();
+            }
         }
+
     }
 
     private void handleAds() {
