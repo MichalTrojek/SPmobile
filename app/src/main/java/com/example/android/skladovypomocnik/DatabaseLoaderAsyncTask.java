@@ -37,6 +37,7 @@ public class DatabaseLoaderAsyncTask extends AsyncTask<Void, Integer, HashMap<St
         max = (int) db.getTableSize();
         progress.setMax(max);
         progress.setProgress(0);
+        loadingInfoTextView.setText("Velikost databáze : " + max);
         dialog.show();
 
     }
@@ -49,14 +50,10 @@ public class DatabaseLoaderAsyncTask extends AsyncTask<Void, Integer, HashMap<St
         cursor.moveToFirst();
         int counter = 0;
         while (!cursor.isAfterLast()) {
+            map.put(cursor.getString(0), new Item(cursor.getString(0), cursor.getString(1), cursor.getString(2)));
+            cursor.moveToNext();
             counter++;
             publishProgress(counter);
-            String ean = cursor.getString(0);
-            String name = cursor.getString(1);
-            String price = cursor.getString(2);
-
-            map.put(ean, new Item(ean, name, price));
-            cursor.moveToNext();
         }
         return map;
     }
@@ -64,7 +61,6 @@ public class DatabaseLoaderAsyncTask extends AsyncTask<Void, Integer, HashMap<St
     @Override
     protected void onProgressUpdate(Integer... values) {
         progress.setProgress(values[0]);
-        loadingInfoTextView.setText(values[0] + "/" + max);
     }
 
 
@@ -73,6 +69,7 @@ public class DatabaseLoaderAsyncTask extends AsyncTask<Void, Integer, HashMap<St
         db.close();
         Model.getInstance().setNamesAndPrices(map);
         Toast.makeText(context, "Nahráno " + map.size() + " položek", Toast.LENGTH_SHORT).show();
+        dialog.setCancelable(true);
         dialog.hide();
         dialog.dismiss();
     }

@@ -1,17 +1,11 @@
 package com.example.android.skladovypomocnik;
 
 import android.Manifest;
-import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -29,14 +23,8 @@ import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
 import com.google.gson.Gson;
-import com.jakewharton.processphoenix.ProcessPhoenix;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.math.BigInteger;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -65,9 +53,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private TextView loadingInfoTextView;
     private TextView bookNameTextView;
     private TextView amountTextView;
+    private TextView downloadDatabaseTextview;
     private ProgressBar progress;
     private AlertDialog loadingDialog;
-    private String TAG = "MainActivity";
+    private AlertDialog downloadingDialog;
 
 
     @Override
@@ -76,7 +65,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.activity_main);
         MobileAds.initialize(this, "ca-app-pub-6403268384265634~1982638427");
         settings = new Settings(this);
-        askForPermission();
         inputEanText = (EditText) findViewById(R.id.inputEanText);
         inputEanText.requestFocus();
 
@@ -92,30 +80,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         handleAds();
 
-
+        createLoadingDialog();
         createIpAddressAlertDialog();
         createListItemAlertDialog();
         setButtonListeners();
         setInputListener();
         setSelectedItemListener();
 
+    }
+
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        articles.clear();
+        articles.addAll(settings.getArticles());
+        listViewAdapter.notifyDataSetChanged();
+        refreshAmountTextView();
+        askForPermission();
+
 
     }
+
 
     public void askForPermission() {
         if (Build.VERSION.SDK_INT >= 23) {
             if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED) {
+                    == PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
                 // you already have a permission
                 checkForDatabaseUpdate();
             } else {
                 // asks for permission
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
             }
         } else { //you dont need to worry about these stuff below api level 23
-
         }
     }
+
 
     //  After user allows permissions, it checks if the database is up to date. If not, it offers update.
     @Override
@@ -141,7 +142,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onResponse(Call<DatabaseVersion> call, Response<DatabaseVersion> response) {
                 if (!response.isSuccessful()) {
-                    Toast.makeText(getApplicationContext(), "Dotaz nebyl úspešný" + response.code(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getApplicationContext(), "Dotaz nebyl úspešný." + response.code(), Toast.LENGTH_SHORT).show();
                     return;
                 } else {
                     DatabaseVersion version = response.body();
@@ -162,10 +163,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         });
     }
 
+
     private void updateFoundDialog(Context context) {
-        new AlertDialog.Builder(context).setTitle("Aktualizace databaze").setMessage("Je dostupna aktualizace database.").setPositiveButton("Aktualizovat", new DialogInterface.OnClickListener() {
+        new AlertDialog.Builder(context).setTitle("Aktualizace databaze").setMessage(String.format("Je dostupná %d. verze databáze.\nPo aktualizaci se aplikace sama restartuje a data, se kterýma pracujete se vymažou.", onlineDbVersionNumber)).setPositiveButton("Aktualizovat", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
+                createDownloadingDatabaseDialog();
                 updateDatabase();
             }
         }).setNegativeButton("Neaktualizovat", new DialogInterface.OnClickListener() {
@@ -176,25 +179,37 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }).setIcon(R.drawable.ic_file_download).show();
     }
 
+    private ProgressBar downloadingDatabaseProgressBar;
+
+
+    private void createDownloadingDatabaseDialog() {
+        View view = getLayoutInflater().inflate(R.layout.start_downloading_dialog, null);
+        downloadingDatabaseProgressBar = view.findViewById(R.id.progressBar);
+        downloadDatabaseTextview = (TextView) view.findViewById(R.id.loadingInfoTextView);
+        downloadingDialog = new AlertDialog.Builder(this).setView(view).setCancelable(false).create();
+    }
+
+
     private void updateDatabase() {
         try {
-            downloadDatabaseFromUrl("http://www.skladovypomocnik.cz/BooksDatabase.db");
-            Toast.makeText(this, "Stahování zahájeno, čekejte. Aplikace se po stáhnutí restartuje.", Toast.LENGTH_LONG).show();
+            DatabaseDownloader databaseDownloader = new DatabaseDownloader(this, onlineDbVersionNumber, downloadingDialog, downloadingDatabaseProgressBar, settings);
+            databaseDownloader.download("http://www.skladovypomocnik.cz/BooksDatabase.db");
         } catch (Exception e) {
+            Toast.makeText(this, "Aktualizace se nezdařila.", Toast.LENGTH_LONG).show();
             e.printStackTrace();
         }
     }
 
     private void preloadDatabaseData() {
-        if (settings.getArticles().isEmpty() || settings.getArticles() == null) {
-            Toast.makeText(MainActivity.this, "Čekejte", Toast.LENGTH_LONG).show();
-            createLoadingDialog();
+        try {
             if (Model.getInstance().getNamesAndPrices() == null) {
+                Toast.makeText(MainActivity.this, "Čekejte", Toast.LENGTH_LONG).show();
                 DatabaseLoaderAsyncTask databaseLoader = new DatabaseLoaderAsyncTask(this, loadingDialog, progress, loadingInfoTextView);
                 databaseLoader.execute();
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
     }
 
     private void handleAds() {
@@ -207,15 +222,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onStop() {
         super.onStop();
         settings.setArticles(articles);
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        articles.clear();
-        articles.addAll(settings.getArticles());
-        listViewAdapter.notifyDataSetChanged();
-        refreshAmountTextView();
     }
 
 
@@ -484,86 +490,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
 
-    private String tempPath = "/temp/";
-    private String databaseName = "BooksDatabase.db";
-    private BroadcastReceiver onDownloadComplete;
-    private DownloadManager dm;
-
-    private void downloadDatabaseFromUrl(String databaseUrl) {
-        deleteDatabaseIfExists();
-        //setups request
-        dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(databaseUrl)).setDescription("Stahování databáze").setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE).setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI).setDestinationInExternalPublicDir(tempPath, databaseName);
-
-
-        final long enqueueIdReference = dm.enqueue(request); // starts downloading by putting request into queue, returns unique long ID
-
-
-        // listens for download result.
-        onDownloadComplete = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
-                if (enqueueIdReference == id) {
-                    //Downloading finished
-                    String sdCard = Environment.getExternalStorageDirectory().toString();
-                    File sourceFile = new File(sdCard + "/temp/BooksDatabase.db");
-                    File destinationFile = new File("/data/data/com.mtr.spmobile/databases/BooksDatabase.db");
-                    if (!destinationFile.exists()) {
-                        File destinationFolder = new File("/data/data/com.mtr.spmobile/databases");
-                        destinationFolder.mkdirs();
-                    }
-                    try {
-                        copyFileFromExternalToInternalMemory(sourceFile, destinationFile);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        };
-
-
-        registerReceiver(onDownloadComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
-    }
-
-    public void copyFileFromExternalToInternalMemory(File src, File dst) throws IOException {
-        FileChannel inChannel = new FileInputStream(src).getChannel();
-        FileChannel outChannel = new FileOutputStream(dst).getChannel();
-        try {
-            inChannel.transferTo(0, inChannel.size(), outChannel);
-        } finally {
-            if (inChannel != null)
-                inChannel.close();
-            if (outChannel != null)
-                outChannel.close();
-        }
-        restartApplication();
-    }
-
-    private void restartApplication() {
-        settings.setCurrentDatabaseVersion(onlineDbVersionNumber);
-        ProcessPhoenix.triggerRebirth(MainActivity.this);
-    }
-
-
-    private void deleteDatabaseIfExists() {
-        File file = new File("/sdcard" + tempPath + databaseName);
-        if (file.exists()) {
-            file.delete();
-        }
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        try {
-            unregisterReceiver(onDownloadComplete);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-
     private String convertListToJson() {
         Gson gson = new Gson();
         String fileName = inputFilename.getText().toString();
@@ -613,7 +539,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }).create();
         builder.show();
-
     }
 
     private void deleteAll() {
@@ -656,7 +581,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         View view = getLayoutInflater().inflate(R.layout.start_loading, null);
         progress = view.findViewById(R.id.progressBar);
         loadingInfoTextView = (TextView) view.findViewById(R.id.loadingInfoTextView);
-        loadingDialog = new AlertDialog.Builder(this).setView(view).create();
+        loadingDialog = new AlertDialog.Builder(this).setCancelable(false).setView(view).create();
     }
 
     private void setButtonListeners() {

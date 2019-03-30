@@ -35,8 +35,10 @@ public class Settings {
 
     public void setCurrentDatabaseVersion(int currentDbVersion) {
         editor = prefs.edit();
+        editor.clear();
         editor.putInt("currentDbVersion", currentDbVersion);
-        editor.apply();
+//        editor.apply();
+        editor.commit(); // Application will be restarted after this is called. I am forced to use commit instead of apply because its immediate, using apply wont work because data wont be saved fast enough.
     }
 
 

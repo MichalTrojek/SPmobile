@@ -7,8 +7,8 @@ android {
         applicationId "com.mtr.spmobile"
         minSdkVersion 21
         targetSdkVersion 27
-        versionCode 23
-        versionName "23"
+        versionCode 27
+        versionName "27"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -28,7 +28,10 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.8.5'
     implementation 'com.squareup.retrofit2:retrofit:2.5.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.2.0'
-    implementation 'com.jakewharton:process-phoenix:2.0.0'
+
+
+
+    implementation "com.tonyodev.fetch2:fetch2:3.0.2"
 
 
 
