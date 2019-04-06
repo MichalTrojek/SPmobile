@@ -14,12 +14,11 @@
 
 
 
-    <string name="versionNumber">Verze: 26</string>
+    <string name="versionNumber">Verze: 28</string>
 
 
     <string name="start_downloading">Aktualizace databáze</string>
     <string name="start_downloading_text">Probíhá stahování databáze...</string>
-
 
 
     <string name="addAmountButton">Přidat</string>

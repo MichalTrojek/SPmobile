@@ -19,8 +19,6 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
 import com.google.gson.Gson;
 
@@ -78,7 +76,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         list.setAdapter(listViewAdapter);
         list.setFocusable(false);
 
-        handleAds();
 
         createLoadingDialog();
         createIpAddressAlertDialog();
@@ -98,8 +95,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         listViewAdapter.notifyDataSetChanged();
         refreshAmountTextView();
         askForPermission();
-
-
     }
 
 
@@ -212,11 +207,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private void handleAds() {
-        AdView adView = (AdView) findViewById(R.id.adView);
-        AdRequest adRequest = new AdRequest.Builder().addTestDevice(AdRequest.DEVICE_ID_EMULATOR).build();
-        adView.loadAd(adRequest);
-    }
 
     @Override
     public void onStop() {
@@ -255,6 +245,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if ((keyevent.getAction() == KeyEvent.ACTION_DOWN) && (keyCode == KeyEvent.KEYCODE_ENTER)) {
             addEan();
             hideKeyboard(inputEanText);
+            list.smoothScrollToPosition(0);
             refreshAmountTextView();
             return true;
         }
@@ -276,6 +267,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             iterateListForMatch(ean);
         }
         listViewAdapter.notifyDataSetChanged();
+
         inputEanText.setText("");
     }
 
