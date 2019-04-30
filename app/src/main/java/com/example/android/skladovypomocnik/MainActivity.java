@@ -337,8 +337,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         selectedIndex = position;
         bookNameTextView.setText(articles.get(selectedIndex).getName());
         amountTextView.setText("Současné množství: " + articles.get(selectedIndex).getAmount());
+
+        addEanClearInputAmountAndCloseDialog();
+
         deleteDialog.show();
     }
+
+
+    // this method is here to
+    private void addEanClearInputAmountAndCloseDialog() {
+        inputAmount.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent keyevent) {
+                if (keyCode == KeyEvent.KEYCODE_ENTER) {
+                    String ean = inputAmount.getText().toString();
+                    if (!ean.isEmpty()) {
+                        handleAddingEan(ean);
+                    }
+                    inputAmount.setText("");
+                    deleteDialog.dismiss();
+                }
+                return false;
+            }
+        });
+    }
+
 
     @Override
     public void onClick(View v) {
