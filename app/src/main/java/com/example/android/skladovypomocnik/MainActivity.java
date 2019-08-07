@@ -10,6 +10,8 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
@@ -24,6 +26,8 @@ import com.google.gson.Gson;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,7 +39,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
-    private ListView list;
+    private ListView listView;
     private ArrayList<Article> articles;
     private ArticleListAdapter listViewAdapter;
     private boolean containsEan = false;
@@ -72,9 +76,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         listViewAdapter = new ArticleListAdapter(this, R.layout.adapter_layout, articles);
 
 
-        list = (ListView) findViewById(R.id.listView);
-        list.setAdapter(listViewAdapter);
-        list.setFocusable(false);
+        listView = (ListView) findViewById(R.id.listView);
+        listView.setAdapter(listViewAdapter);
+        listView.setFocusable(false);
 
 
         createLoadingDialog();
@@ -84,6 +88,41 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setInputListener();
         setSelectedItemListener();
 
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.alphabetButton:
+                if (articles.isEmpty()) {
+                    Toast.makeText(this, "List je prázdný.", Toast.LENGTH_SHORT).show();
+                } else {
+                    Collections.sort(articles, new Comparator<Article>() {
+                        @Override
+                        public int compare(Article article, Article t1) {
+                            return article.getName().compareToIgnoreCase(t1.getName());
+                        }
+                    });
+                    listViewAdapter.notifyDataSetChanged();
+                }
+                return true;
+            case R.id.reverseButton:
+                if (articles.isEmpty()) {
+                    Toast.makeText(this, "List je prázdný.", Toast.LENGTH_SHORT).show();
+                } else {
+                    Collections.reverse(articles);
+                    listViewAdapter.notifyDataSetChanged();
+                }
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
 
@@ -245,7 +284,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if ((keyevent.getAction() == KeyEvent.ACTION_DOWN) && (keyCode == KeyEvent.KEYCODE_ENTER)) {
             addEan();
             hideKeyboard(inputEanText);
-            list.smoothScrollToPosition(0);
+            listView.smoothScrollToPosition(0);
             refreshAmountTextView();
             return true;
         }
@@ -325,7 +364,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     // This one is called when user selects item from listView, it calls a new window that offers delete row, edit ammount and add amount functions.
     private void setSelectedItemListener() {
-        list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
                 handleItemSelected(position);
@@ -344,7 +383,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
 
-    // this method is here to
     private void addEanClearInputAmountAndCloseDialog() {
         inputAmount.setOnKeyListener(new View.OnKeyListener() {
             @Override
