@@ -25,6 +25,7 @@ import com.google.android.gms.ads.MobileAds;
 import com.google.gson.Gson;
 
 import java.math.BigInteger;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -106,7 +107,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     Collections.sort(articles, new Comparator<Article>() {
                         @Override
                         public int compare(Article article, Article t1) {
-                            return article.getName().compareToIgnoreCase(t1.getName());
+                            return removeAccents(article.getName()).compareToIgnoreCase(removeAccents(t1.getName()));
                         }
                     });
                     listViewAdapter.notifyDataSetChanged();
@@ -123,6 +124,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    private String removeAccents(String wordWithAccents) {
+        String cleanString = Normalizer.normalize(wordWithAccents, Normalizer.Form.NFD);
+        cleanString = cleanString.replaceAll("[^\\p{ASCII}]", "");
+        return cleanString;
     }
 
 
