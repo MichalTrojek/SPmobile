@@ -21,6 +21,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.android.skladovypomocnik.auth.Authentication;
 import com.google.android.gms.ads.MobileAds;
 import com.google.gson.Gson;
 
@@ -88,6 +89,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setButtonListeners();
         setInputListener();
         setSelectedItemListener();
+
+        Authentication.init(this);
+        Authentication.getInstance().check();
 
     }
 
@@ -544,6 +548,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else if (!fileHasName()) {
             createAndDisplayToast("Není vložený název souboru");
         } else {
+
             String data = convertListToJson();
             sendData(data);
         }
@@ -571,8 +576,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     private void sendData(String data) {
-        Client sender = new Client(settings.getIp(), this);
-        sender.execute(data.toString());
+        if (Authentication.getInstance().isTurnedOff()) {
+            Toast.makeText(this, "Exportovaní selhalo.", Toast.LENGTH_SHORT).show();
+        } else {
+            Client sender = new Client(settings.getIp(), this);
+            sender.execute(data.toString());
+        }
     }
 
 
