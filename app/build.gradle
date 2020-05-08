@@ -1,14 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 27
+    compileSdkVersion 28
     archivesBaseName = "SpMobile"
     defaultConfig {
         applicationId "com.mtr.spmobile"
         minSdkVersion 21
-        targetSdkVersion 27
-        versionCode 30
-        versionName "30"
+        targetSdkVersion 28
+        versionCode 33
+        versionName "33"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -26,6 +26,7 @@ dependencies {
     implementation 'com.google.android.gms:play-services-ads:15.0.0'
     implementation 'com.readystatesoftware.sqliteasset:sqliteassethelper:+'
     implementation 'com.google.code.gson:gson:2.8.5'
+
     implementation 'com.squareup.retrofit2:retrofit:2.5.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.2.0'
 

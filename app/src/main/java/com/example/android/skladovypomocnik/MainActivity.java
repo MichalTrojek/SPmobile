@@ -180,12 +180,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     int onlineDbVersionNumber;
 
     private void checkForDatabaseUpdate() {
+
         Retrofit retrofit = new Retrofit.Builder().baseUrl(Api.BASE_URL).addConverterFactory(GsonConverterFactory.create()).build();
         Api api = retrofit.create(Api.class);
         Call<DatabaseVersion> call = api.getDatabaseVersionInfo();
         call.enqueue(new Callback<DatabaseVersion>() {
             @Override
             public void onResponse(Call<DatabaseVersion> call, Response<DatabaseVersion> response) {
+
                 if (!response.isSuccessful()) {
                     Toast.makeText(getApplicationContext(), "Dotaz nebyl úspešný." + response.code(), Toast.LENGTH_SHORT).show();
                     return;
