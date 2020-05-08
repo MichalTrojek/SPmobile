@@ -30,7 +30,6 @@ public class Client extends AsyncTask<String, Void, Void> {
         String message = voids[0];
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(ip, port), 500);
-
             try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
                 out.write(message);
             }
